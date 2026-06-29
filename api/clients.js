@@ -14,7 +14,7 @@ export default async function handler(req, res) {
       items_page(limit: 500) {
         items {
           id name
-          column_values(ids: ["phone","status_11","date8","status_16","dup__of_lead_stage2","color_mkv7297j","person","promotion","additional_payment","promo_code"]) {
+          column_values(ids: ["phone","status_11","date8","status_16","dup__of_lead_stage2","color_mkv7297j","status_167","text_mkswdnmm","text3","text_mm4swazy"]) {
             id text value
           }
         }
@@ -60,10 +60,10 @@ export default async function handler(req, res) {
         apptDate,
         location: col['status_16']?.text || '',
         page,
-        agent: col['person']?.text || '',
-        service: col['promotion']?.text || '',
-        payment: col['additional_payment']?.text || '',
-        promo: col['promo_code']?.text || '',
+        agent: col['status_167']?.text || '',
+        service: col['text_mkswdnmm']?.text || '',
+        payment: col['text3']?.text || '',
+        promo: col['text_mm4swazy']?.text || '',
         smsStatus: col['color_mkv7297j']?.text === 'Done' ? 'Sent' : 'Pending'
       };
     }).filter(Boolean);
