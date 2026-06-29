@@ -1,0 +1,9 @@
+{
+  "name": "sms-reminder-system",
+  "version": "1.0.0",
+  "description": "SMS Reminder System para sa Ad Genius Marketing PH — Monday.com + Semaphore",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  }
+}
