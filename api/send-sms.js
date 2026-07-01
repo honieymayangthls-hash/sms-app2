@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   const SENDER_NAMES = {
     'AVINICHI': 'AVINICHI',
-    'COSMETIC COCOON': 'COCOON',
+    'COSMETIC COCOON': 'COSMECOCOON',
     'LA ROSE': 'LAROSE',
     'LAROSE CEBU': 'LRCEBU',
   };
