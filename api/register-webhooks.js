@@ -42,7 +42,7 @@ export default async function handler(req, res) {
         create_webhook(
           board_id: ${board.id},
           url: "${WEBHOOK_URL}",
-          event: change_column_value,
+          event: change_column_value
           
         ) {
           id
