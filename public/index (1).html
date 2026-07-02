@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Reminder System</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e8e8e8; min-height: 100vh; }
+  #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 380px; }
+  .login-logo { text-align: center; margin-bottom: 2rem; }
+  .login-logo h1 { font-size: 22px; font-weight: 600; color: #fff; }
+  .login-logo p { font-size: 13px; color: #666; margin-top: 4px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; }
+  .field input { width: 100%; height: 40px; background: #111; border: 1px solid #333; border-radius: 8px; padding: 0 12px; color: #e8e8e8; font-size: 14px; }
+  .field input:focus { outline: none; border-color: #4a9eff; }
+  .login-btn { width: 100%; height: 42px; background: #4a9eff; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .login-btn:hover { background: #3a8eef; }
+  .login-err { color: #ff5555; font-size: 13px; text-align: center; margin-top: 10px; display: none; }
+  #app-screen { display: none; }
+  .topbar { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .topbar-left h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  .topbar-left span { font-size: 12px; color: #555; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .conn-dot { width: 8px; height: 8px; border-radius: 50%; background: #333; }
+  .conn-dot.live { background: #00c875; }
+  .conn-dot.error { background: #ff5555; }
+  .conn-label { font-size: 12px; color: #666; }
+  .role-badge { background: #1a3a5c; color: #4a9eff; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+  .role-badge.agent { background: #1a3a1a; color: #00c875; }
+  .logout-btn { background: none; border: 1px solid #333; color: #888; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; }
+  .logout-btn:hover { border-color: #555; color: #ccc; }
+  .main { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .tabs { display: flex; gap: 4px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 4px; margin-bottom: 24px; width: fit-content; }
+  .tab { padding: 7px 18px; border-radius: 7px; font-size: 13px; cursor: pointer; border: none; background: transparent; color: #666; font-weight: 500; transition: all 0.15s; }
+  .tab.active { background: #252525; color: #e8e8e8; border: 1px solid #333; }
+  .tab:hover:not(.active) { color: #aaa; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; }
+  .stat-label { font-size: 12px; color: #555; margin-bottom: 6px; }
+  .stat-num { font-size: 28px; font-weight: 600; }
+  .stat-num.blue { color: #4a9eff; }
+  .stat-num.green { color: #00c875; }
+  .stat-num.orange { color: #fdab3d; }
+  .stat-num.white { color: #e8e8e8; }
+  .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  select, input[type=text] { height: 36px; padding: 0 10px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; color: #e8e8e8; font-size: 13px; }
+  select:focus, input:focus { outline: none; border-color: #4a9eff; }
+  .btn { height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 500; border: 1px solid #333; background: #1a1a1a; color: #e8e8e8; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: all 0.15s; }
+  .btn:hover { background: #252525; border-color: #444; }
+  .btn.primary { background: #4a9eff; color: #fff; border-color: #4a9eff; }
+  .btn.primary:hover { background: #3a8eef; }
+  .btn.primary:disabled { background: #1a3a5c; color: #4a6a8c; border-color: #1a3a5c; cursor: not-allowed; }
+  .select-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; }
+  input[type=checkbox] { width: 15px; height: 15px; accent-color: #4a9eff; cursor: pointer; }
+  .table-wrap { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #151515; }
+  th { text-align: left; padding: 10px 14px; color: #555; font-size: 12px; font-weight: 500; border-bottom: 1px solid #2a2a2a; white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1f1f1f; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1f1f1f; }
+  .empty-row, .loading-row { text-align: center; padding: 32px; color: #444; font-size: 13px; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .b-avinichi { background: #2d1a4a; color: #c084fc; }
+  .b-cocoon { background: #3a2000; color: #fdab3d; }
+  .b-larose { background: #3a0020; color: #fb7185; }
+  .b-lrcebu { background: #002a1a; color: #34d399; }
+  .b-confirmed { background: #002a15; color: #00c875; }
+  .b-forconf { background: #001a3a; color: #4a9eff; }
+  .b-resched { background: #2a1a00; color: #fdab3d; }
+  .b-sent { background: #002a15; color: #00c875; }
+  .b-pending { background: #2a2000; color: #fdab3d; }
+  .b-failed { background: #2a0000; color: #ff5555; }
+  .b-neutral { background: #222; color: #666; }
+  .preview-box { background: #111; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px 16px; margin: 14px 0; }
+  .preview-label { font-size: 12px; color: #555; margin-bottom: 8px; }
+  .preview-bubble { background: #1a1a1a; border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: #ccc; border-left: 3px solid #4a9eff; white-space: pre-wrap; }
+  .preview-meta { font-size: 11px; color: #444; margin-top: 8px; }
+  .template-section { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .template-section label { font-size: 12px; color: #666; display: block; margin-bottom: 6px; }
+  textarea { width: 100%; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px 12px; color: #e8e8e8; font-size: 13px; resize: vertical; min-height: 120px; line-height: 1.6; font-family: inherit; }
+  textarea:focus { outline: none; border-color: #4a9eff; }
+  .send-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+  .send-info { font-size: 13px; color: #555; }
+  .progress-bar { width: 100%; height: 3px; background: #222; border-radius: 2px; overflow: hidden; margin-top: 10px; display: none; }
+  .progress-fill { height: 100%; background: #4a9eff; border-radius: 2px; transition: width 0.3s; width: 0%; }
+  .rule-card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; margin-bottom: 10px; }
+  .rule-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .rule-title { font-size: 14px; font-weight: 600; color: #e8e8e8; display: flex; align-items: center; gap: 8px; }
+  .rule-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .rule-desc { font-size: 13px; color: #666; line-height: 1.5; }
+  .rule-meta { font-size: 12px; color: #444; margin-top: 6px; }
+  #toast { position: fixed; bottom: 20px; right: 20px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 10px 16px; font-size: 13px; z-index: 9999; opacity: 0; transition: opacity 0.25s; pointer-events: none; max-width: 300px; }
+  #toast.show { opacity: 1; }
+  #toast.ok { border-color: #00c875; color: #00c875; }
+  #toast.err { border-color: #ff5555; color: #ff5555; }
+  .agent-info { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #888; }
+  .agent-info strong { color: #4a9eff; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>📱 SMS Reminders</h1>
+      <p>Ad Genius Marketing PH</p>
+    </div>
+    <div class="field">
+      <label>Username</label>
+      <input type="text" id="login-user" placeholder="username" autocomplete="username">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Sign in</button>
+    <p class="login-err" id="login-err">Mali ang username o password.</p>
+  </div>
+</div>
+
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>📱 SMS Reminder System</h1>
+      <span>👑 Confirmation Board</span>
+    </div>
+    <div class="topbar-right">
+      <span class="role-badge" id="role-badge">Admin</span>
+      <div class="conn-dot" id="conn-dot"></div>
+      <span class="conn-label" id="conn-label">Connecting...</span>
+      <button class="btn" onclick="loadClients()" style="height:30px;font-size:12px;">↺ Refresh</button>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tabs" id="tabs-bar">
+      <button class="tab active" onclick="switchTab('manual')">✉️ Send SMS</button>
+      <button class="tab" id="tab-auto-btn" onclick="switchTab('auto')">🤖 Auto Rules</button>
+      <button class="tab" onclick="switchTab('logs')">📋 Send Logs</button>
+    </div>
+
+    <div id="tab-manual" class="section active">
+      <div id="agent-info-bar" class="agent-info" style="display:none;">
+        Logged in as: <strong id="agent-name-display"></strong> — Showing your clients only. Template: Booking Confirmation only.
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Clients loaded</div><div class="stat-num blue" id="s-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">Reminder sent</div><div class="stat-num green" id="s-sent">—</div></div>
+        <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-num orange" id="s-pending">—</div></div>
+        <div class="stat-card"><div class="stat-label">Selected</div><div class="stat-num white" id="s-selected">0</div></div>
+      </div>
+
+      <div class="controls">
+        <select id="f-page" onchange="applyFilters()">
+          <option value="">Lahat ng brand</option>
+          <option value="AVINICHI">Avinichi</option>
+          <option value="COSMETIC COCOON">Cosmetic Cocoon</option>
+          <option value="LA ROSE">La Rose</option>
+          <option value="LAROSE CEBU">Larose Cebu</option>
+        </select>
+        <select id="f-date" onchange="applyFilters()">
+          <option value="all">Lahat ng clients</option>
+          <option value="today">Today</option>
+          <option value="tomorrow">Tomorrow</option>
+          <option value="thisweek">This week</option>
+          <option value="nextweek">Next week</option>
+          <option value="lastweek">Last week</option>
+        </select>
+        <select id="f-status" onchange="applyFilters()">
+          <option value="">Lahat ng status</option>
+          <option value="For confirmation">For confirmation</option>
+          <option value="Confirmed">Confirmed</option>
+          <option value="For reconfirmation">For reconfirmation</option>
+          <option value="Rescheduled">Rescheduled</option>
+          <option value="Scheduled">Scheduled</option>
+        </select>
+        <div class="select-row">
+          <input type="checkbox" id="chk-all" onchange="toggleAll(this.checked)">
+          <label for="chk-all">Piliin lahat</label>
+        </div>
+      </div>
+
+      <div class="template-section" id="template-section">
+        <label>Template — gamitin: {name} {brand} {date} {time} {location} {agent} {service} {payment} {promo}</label>
+        <select id="t-pick" onchange="applyTemplate(this.value)" style="width:100%; margin-bottom:10px;">
+          <option value="booking">📋 Booking confirmation</option>
+          <option value="reminder">Day-before reminder</option>
+          <option value="confirmed">Confirmed appointment</option>
+          <option value="dayof">Day-of reminder</option>
+          <option value="custom">Custom</option>
+        </select>
+        <textarea id="sms-tpl" oninput="updatePreview()"></textarea>
+      </div>
+
+      <div class="preview-box">
+        <div class="preview-label">👀 Preview ng SMS</div>
+        <div class="preview-bubble" id="preview-text">Pumili ng client para makita ang preview...</div>
+        <div class="preview-meta" id="preview-meta"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:34px"></th>
+              <th>Client name</th>
+              <th>Phone</th>
+              <th>Agent</th>
+              <th>Brand</th>
+              <th>Appointment</th>
+              <th>Appt. status</th>
+              <th>SMS status</th>
+            </tr>
+          </thead>
+          <tbody id="clients-tbody">
+            <tr><td colspan="8" class="loading-row">⏳ Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="progress-bar" id="prog-bar"><div class="progress-fill" id="prog-fill"></div></div>
+      <div class="send-bar">
+        <div class="send-info" id="send-info">Pumili ng clients para magpadala</div>
+        <button class="btn primary" id="send-btn" onclick="sendSelected()" disabled>✉️ Magpadala ng SMS</button>
+      </div>
+    </div>
+
+    <div id="tab-auto" class="section">
+      <p style="font-size:13px; color:#555; margin-bottom:16px;">Auto rules — nagpapadala ng SMS araw-araw nang walang manual na click.</p>
+      <div class="rule-card">
+        <div class="rule-header">
+          <div class="rule-title"><div class="rule-dot" style="background:#4a9eff"></div>Day-before reminder</div>
+        </div>
+        <div class="rule-desc">Nagpapadala ng SMS sa lahat ng clients na may appointment <strong>bukas</strong> sa 10:00 AM.</div>
+        <div class="rule-meta">Cron: 0 2 * * * (UTC = 10AM PH)</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-header">
+          <div class="rule-title"><div class="rule-dot" style="background:#00c875"></div>Day-of reminder</div>
+        </div>
+        <div class="rule-desc">Nagpapadala ng SMS sa mga Confirmed clients sa araw ng appointment sa 8:00 AM.</div>
+        <div class="rule-meta">Cron: 0 0 * * * (UTC = 8AM PH)</div>
+      </div>
+      <div class="rule-card">
+        <div class="rule-header">
+          <div class="rule-title"><div class="rule-dot" style="background:#fdab3d"></div>Webhook — Auto Booking Confirmation</div>
+        </div>
+        <div class="rule-desc">Nagpapadala ng Booking Confirmation SMS kapag nag-change ang status ng deal sa <strong>Scheduled</strong> o <strong>Rescheduled</strong> sa kahit anong agent board.</div>
+        <div class="rule-meta">Trigger: Monday.com webhook → status7 column → Scheduled / Rescheduled</div>
+      </div>
+    </div>
+
+    <div id="tab-logs" class="section">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Oras</th><th>Client</th><th>Phone</th><th>Brand</th><th>Message</th><th>Status</th></tr></thead>
+          <tbody id="logs-tbody"><tr><td colspan="6" class="empty-row">Walang logs pa.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const USERS = {
+  admin:    { pass: 'adgenius2024', role: 'admin', agentName: null },
+  earl:     { pass: 'Earl2026',     role: 'agent', agentName: 'Earl' },
+  sharlene: { pass: 'Sharlene2026', role: 'agent', agentName: 'Sharlene' },
+  jess:     { pass: 'Jess2026',     role: 'agent', agentName: 'Jess' },
+  paulo:    { pass: 'Paulo2026',    role: 'agent', agentName: 'Paulo' },
+  mj:       { pass: 'MJ2026',       role: 'agent', agentName: 'MJ' },
+  ria:      { pass: 'Ria2026',      role: 'agent', agentName: 'Ria' },
+  denmark:  { pass: 'Denmark2026',  role: 'agent', agentName: 'Denmark' },
+  piolo:    { pass: 'Piolo2026',    role: 'agent', agentName: 'Piolo' },
+  red:      { pass: 'Red2026',      role: 'agent', agentName: 'Red' },
+  isha:     { pass: 'Isha2026',     role: 'agent', agentName: 'Isha' },
+  tricia:   { pass: 'Tricia2026',   role: 'agent', agentName: 'Tricia' },
+  jonie:    { pass: 'Jonie2026',    role: 'agent', agentName: 'Jonie' },
+  vhan:     { pass: 'Vhan2026',     role: 'agent', agentName: 'Vhan' },
+  rizza:    { pass: 'Rizza2026',    role: 'agent', agentName: 'Rizza' },
+  gazel:    { pass: 'Gazel2026',    role: 'agent', agentName: 'Gazel' },
+  arny:     { pass: 'Arny2026',     role: 'agent', agentName: 'Arny' },
+};
+
+const TEMPLATES = {
+  booking:  'Hi {name},\n\nIts {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!',
+  reminder: 'Hi {name}!\n\nThis is a soft reminder from {brand} that you have an appointment with us tomorrow, {date} at {time}.\n\nPlease confirm your attendance by messaging us on our FB page.\n\nThank you!',
+  confirmed:'Hi {name}! Confirmed na ang iyong appointment sa {brand} sa {date} ng {time}. Lokasyon: {location}. Hanggang sa makita ka! — {brand} Team',
+  dayof:    'Hi {name}!\n\nThis is {brand}. Just a reminder that your appointment is TODAY at {time}.\n\nWe look forward to seeing you!\n\nThank You!',
+  custom:   '',
+};
+
+const PAGE_BADGE = {'AVINICHI':'b-avinichi','COSMETIC COCOON':'b-cocoon','LA ROSE':'b-larose','LAROSE CEBU':'b-lrcebu'};
+const APPT_BADGE = {'Confirmed':'b-confirmed','For confirmation':'b-forconf','For reconfirmation':'b-forconf','For Reschedule':'b-resched','Rescheduled':'b-resched','Scheduled':'b-confirmed'};
+
+let allClients = [], filteredClients = [], sendLogs = [];
+let currentUser = null;
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim().toLowerCase();
+  const p = document.getElementById('login-pass').value;
+  const user = USERS[u];
+  if (user && user.pass === p) {
+    currentUser = { username: u, ...user };
+    sessionStorage.setItem('sms_auth', JSON.stringify(currentUser));
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('sms_auth');
+  location.reload();
+}
+
+function initApp() {
+  const badge = document.getElementById('role-badge');
+  if (currentUser.role === 'agent') {
+    badge.textContent = '👤 ' + currentUser.agentName;
+    badge.classList.add('agent');
+    document.getElementById('t-pick').innerHTML = '<option value="booking">📋 Booking confirmation</option><option value="custom">Custom</option>';
+    document.getElementById('agent-info-bar').style.display = 'block';
+    document.getElementById('agent-name-display').textContent = currentUser.agentName;
+    document.getElementById('tab-auto-btn').style.display = 'none';
+  } else {
+    badge.textContent = '🔑 Admin';
+  }
+  applyTemplate('booking');
+  loadClients();
+}
+
+function switchTab(n) {
+  ['manual','auto','logs'].forEach((t,i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', t===n);
+    document.getElementById('tab-'+t).classList.toggle('active', t===n);
+  });
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast show ' + type;
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+function fDate(ds) {
+  if (!ds) return '—';
+  try { return new Date(ds).toLocaleDateString('en-PH',{month:'short',day:'numeric',year:'numeric'}); } catch { return ds; }
+}
+function fTime(ds) {
+  if (!ds) return '';
+  try { const d = new Date(ds); if(isNaN(d)) return ''; d.setHours(d.getHours()+1); return d.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'}); } catch { return ''; }
+}); } catch { return ''; }
+}
+
+function getWeekBounds(offsetWeeks) {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(now.getDate() - now.getDay() + (offsetWeeks * 7));
+  start.setHours(0,0,0,0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  end.setHours(23,59,59,999);
+  return { start, end };
+}
+
+function isToday(ds) { return ds && new Date(ds).toDateString()===new Date().toDateString(); }
+function isTomorrow(ds) { if(!ds)return false; const t=new Date(); t.setDate(t.getDate()+1); return new Date(ds).toDateString()===t.toDateString(); }
+function isThisWeek(ds) { if(!ds)return false; const {start,end}=getWeekBounds(0); const d=new Date(ds); return d>=start&&d<=end; }
+function isNextWeek(ds) { if(!ds)return false; const {start,end}=getWeekBounds(1); const d=new Date(ds); return d>=start&&d<=end; }
+function isLastWeek(ds) { if(!ds)return false; const {start,end}=getWeekBounds(-1); const d=new Date(ds); return d>=start&&d<=end; }
+
+function bBrand(p) { return `<span class="badge ${PAGE_BADGE[p]||'b-neutral'}">${p||'—'}</span>`; }
+function bAppt(s) { if(!s)return '<span class="badge b-neutral">—</span>'; return `<span class="badge ${APPT_BADGE[s]||'b-neutral'}">${s}</span>`; }
+function bSms(s) { return `<span class="badge ${s==='Sent'?'b-sent':s==='Failed'?'b-failed':'b-pending'}">${s||'Pending'}</span>`; }
+
+function fillTpl(tpl, c) {
+  const loc = (c.location||'').split('-').pop()?.trim()||'our clinic';
+  return tpl
+    .replace(/{name}/g, c.name||'')
+    .replace(/{brand}/g, c.page||'')
+    .replace(/{date}/g, fDate(c.apptDate))
+    .replace(/{time}/g, fTime(c.apptDate)||'')
+    .replace(/{location}/g, loc)
+    .replace(/{agent}/g, c.agent||'')
+    .replace(/{service}/g, c.service||'')
+    .replace(/{payment}/g, c.payment||'')
+    .replace(/{promo}/g, c.promo||'');
+}
+
+function applyTemplate(v) {
+  if (v !== 'custom') document.getElementById('sms-tpl').value = TEMPLATES[v]||'';
+  updatePreview();
+}
+
+function applyFilters() {
+  const page = document.getElementById('f-page').value;
+  const date = document.getElementById('f-date').value;
+  const status = document.getElementById('f-status').value;
+
+  filteredClients = allClients.filter(c => {
+    if (page && c.page !== page) return false;
+    if (status && c.apptStatus !== status) return false;
+    if (date === 'today'    && !isToday(c.apptDate))    return false;
+    if (date === 'tomorrow' && !isTomorrow(c.apptDate)) return false;
+    if (date === 'thisweek' && !isThisWeek(c.apptDate)) return false;
+    if (date === 'nextweek' && !isNextWeek(c.apptDate)) return false;
+    if (date === 'lastweek' && !isLastWeek(c.apptDate)) return false;
+    if (currentUser.role === 'agent' && c.agent !== currentUser.agentName) return false;
+    return true;
+  });
+  renderTable(); updatePreview();
+}
+
+function toggleAll(v) { filteredClients.forEach(c => c.checked=v); renderTable(); updatePreview(); }
+
+function toggleClient(id, el) {
+  const c = allClients.find(x=>x.id===id);
+  if (c) { c.checked=el.checked; updateStats(); updatePreview(); }
+}
+
+function updateStats() {
+  document.getElementById('s-total').textContent = filteredClients.length;
+  document.getElementById('s-sent').textContent = allClients.filter(c=>c.smsStatus==='Sent').length;
+  document.getElementById('s-pending').textContent = allClients.filter(c=>c.smsStatus!=='Sent').length;
+  document.getElementById('s-selected').textContent = allClients.filter(c=>c.checked).length;
+}
+
+function updatePreview() {
+  const checked = filteredClients.filter(c=>c.checked);
+  const first = checked[0]||filteredClients[0];
+  const tpl = document.getElementById('sms-tpl').value;
+  if (first) {
+    document.getElementById('preview-text').textContent = fillTpl(tpl,first);
+    document.getElementById('preview-meta').textContent = tpl.length+' chars · '+checked.length+' recipient'+(checked.length!==1?'s':'')+' selected';
+  } else {
+    document.getElementById('preview-text').textContent = 'Walang clients na naka-load.';
+    document.getElementById('preview-meta').textContent = '';
+  }
+  const btn = document.getElementById('send-btn');
+  btn.disabled = checked.length === 0;
+  document.getElementById('send-info').textContent = checked.length > 0 ? `${checked.length} client${checked.length>1?'s':''} selected` : 'Pumili ng clients para magpadala';
+  document.getElementById('s-selected').textContent = checked.length;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('clients-tbody');
+  if (!filteredClients.length) {
+    tbody.innerHTML='<tr><td colspan="8" class="empty-row">Walang clients na tumutugma sa filters.</td></tr>';
+    updateStats(); return;
+  }
+  tbody.innerHTML = filteredClients.map(c=>`
+    <tr>
+      <td><input type="checkbox" ${c.checked?'checked':''} onchange="toggleClient('${c.id}',this)"></td>
+      <td style="font-weight:600">${c.name}</td>
+      <td style="font-family:monospace;font-size:12px;color:#888">${c.phone||'—'}</td>
+      <td style="font-size:12px;color:#aaa">${c.agent||'—'}</td>
+      <td>${bBrand(c.page)}</td>
+      <td style="font-size:12px;white-space:nowrap;color:#888">${fDate(c.apptDate)} ${fTime(c.apptDate)}</td>
+      <td>${bAppt(c.apptStatus)}</td>
+      <td>${bSms(c.smsStatus)}</td>
+    </tr>`).join('');
+  updateStats();
+}
+
+async function loadClients() {
+  document.getElementById('clients-tbody').innerHTML='<tr><td colspan="8" class="loading-row">⏳ Loading mula sa Monday.com...</td></tr>';
+  document.getElementById('conn-dot').className='conn-dot';
+  document.getElementById('conn-label').textContent='Connecting...';
+  allClients=[]; filteredClients=[];
+  try {
+    const res = await fetch('/api/clients');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error||'API error');
+    allClients = data.map(c=>({...c, checked:false}));
+    filteredClients = [...allClients];
+    applyFilters();
+    document.getElementById('conn-dot').className='conn-dot live';
+    document.getElementById('conn-label').textContent=`Live — ${allClients.length} clients`;
+    showToast(`Na-load ang ${allClients.length} clients`, 'ok');
+  } catch(e) {
+    document.getElementById('clients-tbody').innerHTML='<tr><td colspan="8" class="empty-row">❌ Hindi ma-connect sa Monday.com.</td></tr>';
+    document.getElementById('conn-dot').className='conn-dot error';
+    document.getElementById('conn-label').textContent='Error';
+    showToast('Error: '+e.message,'err');
+  }
+}
+
+async function sendSelected() {
+  const tpl = document.getElementById('sms-tpl').value;
+  const toSend = filteredClients.filter(c=>c.checked&&c.phone);
+  const noPhone = filteredClients.filter(c=>c.checked&&!c.phone);
+  if (!toSend.length) { showToast('Walang clients na may phone number.','err'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled=true; btn.textContent='Nagpapadala...';
+  const bar=document.getElementById('prog-bar');
+  const fill=document.getElementById('prog-fill');
+  bar.style.display='block'; fill.style.width='0%';
+
+  let ok=0, fail=0;
+  for (let i=0; i<toSend.length; i++) {
+    const c = toSend[i];
+    fill.style.width=Math.round(((i+1)/toSend.length)*100)+'%';
+    try {
+      const res = await fetch('/api/send-sms', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ phone:c.phone, message:fillTpl(tpl,c), brand:c.page })
+      });
+      const d = await res.json();
+      if (res.ok && d.success) { c.smsStatus='Sent'; ok++; addLog(c,fillTpl(tpl,c),'Sent'); }
+      else { c.smsStatus='Failed'; fail++; addLog(c,fillTpl(tpl,c),'Failed'); }
+    } catch { c.smsStatus='Failed'; fail++; addLog(c,fillTpl(tpl,c),'Failed'); }
+    renderTable();
+    await new Promise(r=>setTimeout(r,500));
+  }
+
+  btn.disabled=false; btn.innerHTML='✉️ Magpadala ng SMS';
+  bar.style.display='none';
+  const note = noPhone.length ? ` · ${noPhone.length} walang phone` : '';
+  showToast(`Done! ${ok} sent${fail>0?`, ${fail} failed`:''}${note}`, ok>0?'ok':'err');
+  updateStats();
+}
+
+function addLog(c,msg,status) {
+  sendLogs.unshift({time:new Date().toLocaleTimeString('en-PH'),name:c.name,phone:c.phone,page:c.page,msg,status});
+  const tbody=document.getElementById('logs-tbody');
+  tbody.innerHTML=sendLogs.slice(0,100).map(l=>`
+    <tr>
+      <td style="font-size:12px;white-space:nowrap;color:#555">${l.time}</td>
+      <td style="font-weight:600">${l.name}</td>
+      <td style="font-family:monospace;font-size:12px;color:#666">${l.phone||'—'}</td>
+      <td>${bBrand(l.page)}</td>
+      <td style="font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#888">${l.msg}</td>
+      <td>${bSms(l.status)}</td>
+    </tr>`).join('');
+}
+
+const saved = sessionStorage.getItem('sms_auth');
+if (saved) {
+  try {
+    currentUser = JSON.parse(saved);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    initApp();
+  } catch { sessionStorage.removeItem('sms_auth'); }
+}
+</script>
+</body>
+</html>
