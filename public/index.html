@@ -233,17 +233,18 @@
           <option value="dayof">Day-of reminder</option>
           <option value="custom">Custom</option>
         </select>
-        <textarea id="sms-tpl" oninput="updatePreview()">Hi {name} 👋
+        <textarea id="sms-tpl" oninput="updatePreview()">Hi {name}
 This is {agent} from {brand}!
 
-Your {service} ({payment})
+Your {service} using ({payment})
 has been successfully reserved for you on {date} @ {time}
 
 Promo Code: {promo}
-📍 {location}
+{location}
 
 This is a one-time promo.
-Kindly reply "CONFIRMED" to secure your schedule.
+Please confirm 1 day prior to your appointment.
+For inquiries,message us on our FB Page
 
 Thank you! — {brand} Team</textarea>
       </div>
