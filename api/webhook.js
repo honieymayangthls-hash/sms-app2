@@ -37,7 +37,7 @@ const SENDER_NAMES = {
   'LAROSE CEBU':    'LRCEBU',
 };
 
-const BOOKING_TEMPLATE = 'Hi {name}\nThis is {agent} from {brand}!\nYour {service} using ({payment})\nhas been successfully reserved for you on {date} @ {time}\n\nPromo Code: {promo}\n{location}\n\nThis is a one-time promo.\nPlease confirm 1 day prior to your appointment.\nFor inquiries, message us on our FB Page\n\nThank you!';
+const BOOKING_TEMPLATE = "Hi {name} It's {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time} Promo Code: {promo} {location} It's a one-time promo. Please confirm via FB Page 1 day prior to your appointment. Thank you!";
 
 function formatDate(ds) {
   if (!ds) return '—';
@@ -100,10 +100,8 @@ async function sendSms(phone, message, brand, semaphoreKey) {
 }
 
 export default async function handler(req, res) {
-  // Debug — log full payload
   console.log('WEBHOOK BODY:', JSON.stringify(req.body, null, 2));
 
-  // Monday.com sends a challenge for webhook verification
   if (req.body?.challenge) {
     return res.status(200).json({ challenge: req.body.challenge });
   }
@@ -118,7 +116,6 @@ export default async function handler(req, res) {
   const event = req.body?.event;
   if (!event) return res.status(200).json({ ok: true, skipped: 'no event' });
 
-  // Monday sends pulseId (not itemId) for CRM boards
   const boardId = event.boardId;
   const itemId = event.pulseId || event.itemId;
   const columnId = event.columnId;
@@ -126,12 +123,10 @@ export default async function handler(req, res) {
 
   console.log(`Board: ${boardId} | Item: ${itemId} | Column: ${columnId} | Value: ${JSON.stringify(value)}`);
 
-  // Only process status7 column changes
   if (columnId !== 'status7') {
     return res.status(200).json({ ok: true, skipped: `not status7 — got ${columnId}` });
   }
 
-  // Only trigger on Scheduled or Rescheduled
   const newStatus = value?.label?.text || value?.label || '';
   console.log(`Status: ${newStatus}`);
 
@@ -139,7 +134,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, skipped: `status "${newStatus}" not a trigger` });
   }
 
-  // Check if this board is one of our agent boards
   const agentName = AGENT_BOARDS[String(boardId)];
   if (!agentName) {
     return res.status(200).json({ ok: true, skipped: 'not an agent board' });
@@ -167,17 +161,7 @@ export default async function handler(req, res) {
       page = PAGE_MAP[String(v.index)] || col['dup__of_lead_stage2']?.text || '';
     } catch {}
 
-    const client = {
-      name: item.name,
-      phone,
-      apptDate,
-      location,
-      page,
-      agent: agentName,
-      service,
-      payment,
-      promo,
-    };
+    const client = { name: item.name, phone, apptDate, location, page, agent: agentName, service, payment, promo };
 
     const message = fillTemplate(client);
     const success = await sendSms(phone, message, page, SEMAPHORE_KEY);
