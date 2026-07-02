@@ -119,15 +119,23 @@ export default async function handler(req, res) {
   const event = req.body?.event;
   if (!event) return res.status(200).json({ ok: true, skipped: 'no event' });
 
-  const { boardId, itemId, columnId, value } = event;
+  // Monday sends pulseId (not itemId) for CRM boards
+  const boardId = event.boardId;
+  const itemId = event.pulseId || event.itemId;
+  const columnId = event.columnId;
+  const value = event.value;
+
+  console.log(`Board: ${boardId} | Item: ${itemId} | Column: ${columnId} | Value: ${JSON.stringify(value)}`);
 
   // Only process status7 column changes
   if (columnId !== 'status7') {
-    return res.status(200).json({ ok: true, skipped: 'not status7' });
+    return res.status(200).json({ ok: true, skipped: `not status7 — got ${columnId}` });
   }
 
   // Only trigger on Scheduled or Rescheduled
-  const newStatus = value?.label?.text || '';
+  const newStatus = value?.label?.text || value?.label || '';
+  console.log(`Status value: ${JSON.stringify(value)} → newStatus: ${newStatus}`);
+
   if (!TRIGGER_STATUSES.includes(newStatus)) {
     return res.status(200).json({ ok: true, skipped: `status "${newStatus}" not a trigger` });
   }
