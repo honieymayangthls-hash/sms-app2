@@ -2,8 +2,12 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/cron-reminder",
+      "path": "/api/cron-reminder?type=tomorrow",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron-reminder?type=today",
+      "schedule": "0 0 * * *"
     }
   ]
 }
