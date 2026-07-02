@@ -1,7 +1,6 @@
 // api/register-webhooks.js
-// Run this ONCE to register webhooks for all agent boards
-// Visit: https://sms-app2-eight.vercel.app/api/register-webhooks
-// (Admin only - protected by CRON_SECRET)
+// Deletes ALL existing webhooks then registers ONE fresh webhook per agent board
+// Visit: https://sms-app2-eight.vercel.app/api/register-webhooks?secret=adgenius2024
 
 const AGENT_BOARDS = [
   { id: '9692100711',  name: 'Earl' },
@@ -24,11 +23,23 @@ const AGENT_BOARDS = [
 
 const WEBHOOK_URL = 'https://sms-app2-eight.vercel.app/api/webhook';
 
+async function mondayApi(query, token) {
+  const r = await fetch('https://api.monday.com/v2', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token,
+      'API-Version': '2024-10'
+    },
+    body: JSON.stringify({ query })
+  });
+  return r.json();
+}
+
 export default async function handler(req, res) {
-  // Security check
   const secret = req.query.secret || req.headers['x-secret'];
   if (secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized — add ?secret=YOUR_CRON_SECRET to URL' });
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
   const MONDAY_TOKEN = process.env.MONDAY_TOKEN;
@@ -37,55 +48,67 @@ export default async function handler(req, res) {
   const results = [];
 
   for (const board of AGENT_BOARDS) {
-    const mutation = `
-      mutation {
-        create_webhook(
-          board_id: ${board.id},
-          url: "${WEBHOOK_URL}",
-          event: change_column_value
-          
-        ) {
-          id
-          board_id
-        }
-      }
-    `;
+    const boardResult = { agent: board.name, boardId: board.id, deleted: [], registered: null, status: '' };
 
     try {
-      const r = await fetch('https://api.monday.com/v2', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': MONDAY_TOKEN,
-          'API-Version': '2024-10'
-        },
-        body: JSON.stringify({ query: mutation })
-      });
+      // STEP 1 — Get all existing webhooks for this board
+      const getQuery = `{ webhooks(board_id: ${board.id}) { id board_id event } }`;
+      const getData = await mondayApi(getQuery, MONDAY_TOKEN);
+      const existing = getData?.data?.webhooks || [];
 
-      const data = await r.json();
-      const webhookId = data?.data?.create_webhook?.id;
+      // STEP 2 — Delete all existing webhooks
+      for (const wh of existing) {
+        const delQuery = `mutation { delete_webhook(id: ${wh.id}) { id board_id } }`;
+        const delData = await mondayApi(delQuery, MONDAY_TOKEN);
+        const deleted = delData?.data?.delete_webhook?.id;
+        if (deleted) {
+          boardResult.deleted.push(deleted);
+          console.log(`🗑️ Deleted webhook ${wh.id} from ${board.name}`);
+        }
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      // STEP 3 — Register ONE fresh webhook
+      const regQuery = `
+        mutation {
+          create_webhook(
+            board_id: ${board.id},
+            url: "${WEBHOOK_URL}",
+            event: change_column_value
+          ) {
+            id
+            board_id
+          }
+        }
+      `;
+      const regData = await mondayApi(regQuery, MONDAY_TOKEN);
+      const webhookId = regData?.data?.create_webhook?.id;
 
       if (webhookId) {
-        results.push({ agent: board.name, boardId: board.id, webhookId, status: '✅ Success' });
-        console.log(`✅ ${board.name} (${board.id}) → webhook ${webhookId}`);
+        boardResult.registered = webhookId;
+        boardResult.status = '✅ Success';
+        console.log(`✅ ${board.name} → new webhook ${webhookId}`);
       } else {
-        const errMsg = data?.errors?.[0]?.message || 'Unknown error';
-        results.push({ agent: board.name, boardId: board.id, status: '❌ Failed', error: errMsg });
-        console.log(`❌ ${board.name} (${board.id}) → ${errMsg}`);
+        const errMsg = regData?.errors?.[0]?.message || JSON.stringify(regData);
+        boardResult.status = `❌ Failed: ${errMsg}`;
+        console.log(`❌ ${board.name} → ${errMsg}`);
       }
+
     } catch (err) {
-      results.push({ agent: board.name, boardId: board.id, status: '❌ Error', error: err.message });
+      boardResult.status = `❌ Error: ${err.message}`;
+      console.error(`Error processing ${board.name}:`, err);
     }
 
-    // Small delay to avoid rate limiting
+    results.push(boardResult);
     await new Promise(r => setTimeout(r, 300));
   }
 
   const success = results.filter(r => r.status.includes('✅')).length;
   const failed = results.filter(r => r.status.includes('❌')).length;
+  const totalDeleted = results.reduce((sum, r) => sum + r.deleted.length, 0);
 
   return res.status(200).json({
-    summary: `${success} registered, ${failed} failed`,
+    summary: `${success} registered, ${failed} failed, ${totalDeleted} old webhooks deleted`,
     results
   });
 }
