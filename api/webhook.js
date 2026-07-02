@@ -54,7 +54,6 @@ function formatPhone(raw) {
   return '63' + digits;
 }
 function fillTemplate(c) {
-  const loc = (c.location || '').split('-').pop()?.trim() || 'our clinic';
   return BOOKING_TEMPLATE
     .replace(/{name}/g, c.name || '')
     .replace(/{agent}/g, c.agent || '')
@@ -64,7 +63,7 @@ function fillTemplate(c) {
     .replace(/{date}/g, formatDate(c.apptDate))
     .replace(/{time}/g, formatTime(c.apptDate))
     .replace(/{promo}/g, c.promo || '')
-    .replace(/{location}/g, loc);
+    .replace(/{location}/g, c.location || 'our clinic');
 }
 
 async function getItemDetails(itemId, mondayToken) {
@@ -72,7 +71,7 @@ async function getItemDetails(itemId, mondayToken) {
     items(ids: [${itemId}]) {
       id name
       board { id }
-      column_values(ids: ["phone","date8","status_16","dup__of_lead_stage2","text_mkswdnmm","text3","text_mm4swazy","status_167"]) {
+      column_values(ids: ["phone","date8","status_16","dup__of_lead_stage2","text_mksw348s","text3","text_mm4tnvws","status_167"]) {
         id text value
       }
     }
@@ -134,7 +133,7 @@ export default async function handler(req, res) {
 
   // Only trigger on Scheduled or Rescheduled
   const newStatus = value?.label?.text || value?.label || '';
-  console.log(`Status value: ${JSON.stringify(value)} → newStatus: ${newStatus}`);
+  console.log(`Status: ${newStatus}`);
 
   if (!TRIGGER_STATUSES.includes(newStatus)) {
     return res.status(200).json({ ok: true, skipped: `status "${newStatus}" not a trigger` });
@@ -147,7 +146,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch item details
     const item = await getItemDetails(itemId, MONDAY_TOKEN);
     if (!item) return res.status(200).json({ ok: true, skipped: 'item not found' });
 
@@ -159,9 +157,9 @@ export default async function handler(req, res) {
 
     const apptDate = col['date8']?.text || '';
     const location = col['status_16']?.text || '';
-    const service = col['text_mkswdnmm']?.text || '';
+    const service = col['text_mksw348s']?.text || '';
     const payment = col['text3']?.text || '';
-    const promo = col['text_mm4swazy']?.text || '';
+    const promo = col['text_mm4tnvws']?.text || '';
 
     let page = '';
     try {
