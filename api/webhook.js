@@ -37,7 +37,7 @@ const SENDER_NAMES = {
   'LAROSE CEBU':    'LRCEBU',
 };
 
-const BOOKING_TEMPLATE = "Hi {name} It's {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time} Promo Code: {promo} {location} It's a one-time promo. Please confirm via FB Page 1 day prior to your appointment. Thank you!";
+const BOOKING_TEMPLATE = "Hi {name},\n\nIt's {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIt's a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!";
 
 function formatDate(ds) {
   if (!ds) return '—';
