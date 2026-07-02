@@ -45,7 +45,8 @@ function formatDate(ds) {
 }
 function formatTime(ds) {
   if (!ds) return '';
-  try { const d = new Date(ds); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+  try { const d = new Date(ds); if(isNaN(d)) return ''; d.setHours(d.getHours()+1); return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+}); } catch { return ''; }
 }
 function formatPhone(raw) {
   const digits = (raw || '').replace(/\D/g, '');
