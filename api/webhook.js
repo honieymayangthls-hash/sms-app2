@@ -101,6 +101,9 @@ async function sendSms(phone, message, brand, semaphoreKey) {
 }
 
 export default async function handler(req, res) {
+  // Debug — log full payload
+  console.log('WEBHOOK BODY:', JSON.stringify(req.body, null, 2));
+
   // Monday.com sends a challenge for webhook verification
   if (req.body?.challenge) {
     return res.status(200).json({ challenge: req.body.challenge });
