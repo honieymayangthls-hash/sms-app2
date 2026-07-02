@@ -43,7 +43,7 @@ export default async function handler(req, res) {
           board_id: ${board.id},
           url: "${WEBHOOK_URL}",
           event: change_column_value,
-          config: "{\\"columnId\\":\\"status7\\"}"
+          
         ) {
           id
           board_id
