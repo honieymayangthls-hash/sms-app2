@@ -1,7 +1,4 @@
 // api/webhook.js — Monday.com Webhook Handler
-// Triggered when agent changes status to "Scheduled" or "Rescheduled"
-// Automatically sends Booking Confirmation SMS to client
-
 const TRIGGER_STATUSES = ['Scheduled', 'Rescheduled'];
 
 const AGENT_BOARDS = {
@@ -37,23 +34,30 @@ const SENDER_NAMES = {
   'LAROSE CEBU':    'LRCEBU',
 };
 
-const BOOKING_TEMPLATE = "Hi {name},\n\nIt's {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIt's a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!";
+const BOOKING_TEMPLATE = "Hi {name},\n\nIts {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!";
 
 function formatDate(ds) {
-  if (!ds) return '—';
-  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch { return ds; }
+  if (!ds) return '';
+  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch(e) { return ds; }
 }
+
 function formatTime(ds) {
   if (!ds) return '';
-  try { const d = new Date(ds); if(isNaN(d)) return ''; d.setHours(d.getHours()+1); return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
-}); } catch { return ''; }
+  try {
+    var d = new Date(ds);
+    if (isNaN(d)) return '';
+    d.setHours(d.getHours() + 1);
+    return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+  } catch(e) { return ''; }
 }
+
 function formatPhone(raw) {
-  const digits = (raw || '').replace(/\D/g, '');
+  var digits = (raw || '').replace(/\D/g, '');
   if (digits.startsWith('63')) return digits;
   if (digits.startsWith('0')) return '63' + digits.slice(1);
   return '63' + digits;
 }
+
 function fillTemplate(c) {
   return BOOKING_TEMPLATE
     .replace(/{name}/g, c.name || '')
@@ -68,109 +72,100 @@ function fillTemplate(c) {
 }
 
 async function getItemDetails(itemId, mondayToken) {
-  const query = `{
-    items(ids: [${itemId}]) {
-      id name
-      board { id }
-      column_values(ids: ["phone","date8","status_16","dup__of_lead_stage2","text_mksw348s","text3","text_mm4tnvws","status_167"]) {
-        id text value
-      }
-    }
-  }`;
-
-  const r = await fetch('https://api.monday.com/v2', {
+  var query = "{ items(ids: [" + itemId + "]) { id name board { id } column_values(ids: [\"phone\",\"date8\",\"status_16\",\"dup__of_lead_stage2\",\"text_mksw348s\",\"text3\",\"text_mm4tnvws\",\"status_167\"]) { id text value } } }";
+  var r = await fetch('https://api.monday.com/v2', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': mondayToken, 'API-Version': '2024-10' },
-    body: JSON.stringify({ query })
+    body: JSON.stringify({ query: query })
   });
-  const data = await r.json();
-  return data?.data?.items?.[0];
+  var data = await r.json();
+  return data && data.data && data.data.items && data.data.items[0];
 }
 
 async function sendSms(phone, message, brand, semaphoreKey) {
-  const formattedPhone = formatPhone(phone);
-  const senderName = SENDER_NAMES[brand] || 'CLINIC';
-  const r = await fetch('https://api.semaphore.co/api/v4/messages', {
+  var formattedPhone = formatPhone(phone);
+  var senderName = SENDER_NAMES[brand] || 'CLINIC';
+  var r = await fetch('https://api.semaphore.co/api/v4/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apikey: semaphoreKey, number: formattedPhone, message, sendername: senderName })
+    body: JSON.stringify({ apikey: semaphoreKey, number: formattedPhone, message: message, sendername: senderName })
   });
-  const data = await r.json();
-  const result = Array.isArray(data) ? data[0] : data;
-  return r.ok && result?.status !== 'failed';
+  var data = await r.json();
+  var result = Array.isArray(data) ? data[0] : data;
+  return r.ok && result && result.status !== 'failed';
 }
 
 export default async function handler(req, res) {
   console.log('WEBHOOK BODY:', JSON.stringify(req.body, null, 2));
 
-  if (req.body?.challenge) {
+  if (req.body && req.body.challenge) {
     return res.status(200).json({ challenge: req.body.challenge });
   }
 
-  const MONDAY_TOKEN = process.env.MONDAY_TOKEN;
-  const SEMAPHORE_KEY = process.env.SEMAPHORE_KEY;
+  var MONDAY_TOKEN = process.env.MONDAY_TOKEN;
+  var SEMAPHORE_KEY = process.env.SEMAPHORE_KEY;
 
   if (!MONDAY_TOKEN || !SEMAPHORE_KEY) {
     return res.status(500).json({ error: 'Missing env vars' });
   }
 
-  const event = req.body?.event;
+  var event = req.body && req.body.event;
   if (!event) return res.status(200).json({ ok: true, skipped: 'no event' });
 
-  const boardId = event.boardId;
-  const itemId = event.pulseId || event.itemId;
-  const columnId = event.columnId;
-  const value = event.value;
+  var boardId = event.boardId;
+  var itemId = event.pulseId || event.itemId;
+  var columnId = event.columnId;
+  var value = event.value;
 
-  console.log(`Board: ${boardId} | Item: ${itemId} | Column: ${columnId} | Value: ${JSON.stringify(value)}`);
+  console.log('Board: ' + boardId + ' | Item: ' + itemId + ' | Column: ' + columnId);
 
   if (columnId !== 'status7') {
-    return res.status(200).json({ ok: true, skipped: `not status7 — got ${columnId}` });
+    return res.status(200).json({ ok: true, skipped: 'not status7 - got ' + columnId });
   }
 
-  const newStatus = value?.label?.text || value?.label || '';
-  console.log(`Status: ${newStatus}`);
+  var newStatus = (value && value.label && value.label.text) || (value && value.label) || '';
+  console.log('Status: ' + newStatus);
 
-  if (!TRIGGER_STATUSES.includes(newStatus)) {
-    return res.status(200).json({ ok: true, skipped: `status "${newStatus}" not a trigger` });
+  if (TRIGGER_STATUSES.indexOf(newStatus) === -1) {
+    return res.status(200).json({ ok: true, skipped: 'status not a trigger: ' + newStatus });
   }
 
-  const agentName = AGENT_BOARDS[String(boardId)];
+  var agentName = AGENT_BOARDS[String(boardId)];
   if (!agentName) {
     return res.status(200).json({ ok: true, skipped: 'not an agent board' });
   }
 
   try {
-    const item = await getItemDetails(itemId, MONDAY_TOKEN);
+    var item = await getItemDetails(itemId, MONDAY_TOKEN);
     if (!item) return res.status(200).json({ ok: true, skipped: 'item not found' });
 
-    const col = {};
-    (item.column_values || []).forEach(c => col[c.id] = c);
+    var col = {};
+    (item.column_values || []).forEach(function(c) { col[c.id] = c; });
 
-    const phone = col['phone']?.text || '';
+    var phone = (col['phone'] && col['phone'].text) || '';
     if (!phone) return res.status(200).json({ ok: true, skipped: 'no phone number' });
 
-    const apptDate = col['date8']?.text || '';
-    const location = col['status_16']?.text || '';
-    const service = col['text_mksw348s']?.text || '';
-    const payment = col['text3']?.text || '';
-    const promo = col['text_mm4tnvws']?.text || '';
+    var apptDate = (col['date8'] && col['date8'].text) || '';
+    var location = (col['status_16'] && col['status_16'].text) || '';
+    var service = (col['text_mksw348s'] && col['text_mksw348s'].text) || '';
+    var payment = (col['text3'] && col['text3'].text) || '';
+    var promo = (col['text_mm4tnvws'] && col['text_mm4tnvws'].text) || '';
 
-    let page = '';
+    var page = '';
     try {
-      const v = JSON.parse(col['dup__of_lead_stage2']?.value || '{}');
-      page = PAGE_MAP[String(v.index)] || col['dup__of_lead_stage2']?.text || '';
-    } catch {}
+      var v = JSON.parse((col['dup__of_lead_stage2'] && col['dup__of_lead_stage2'].value) || '{}');
+      page = PAGE_MAP[String(v.index)] || (col['dup__of_lead_stage2'] && col['dup__of_lead_stage2'].text) || '';
+    } catch(e) {}
 
-    const client = { name: item.name, phone, apptDate, location, page, agent: agentName, service, payment, promo };
+    var client = { name: item.name, phone: phone, apptDate: apptDate, location: location, page: page, agent: agentName, service: service, payment: payment, promo: promo };
 
-    const message = fillTemplate(client);
-    const success = await sendSms(phone, message, page, SEMAPHORE_KEY);
+    var message = fillTemplate(client);
+    var success = await sendSms(phone, message, page, SEMAPHORE_KEY);
 
-    console.log(`Webhook SMS ${success ? 'sent' : 'failed'} to ${item.name} (${phone}) — Status: ${newStatus} — Agent: ${agentName}`);
+    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName);
 
-    return res.status(200).json({ ok: true, success, client: item.name, status: newStatus, agent: agentName });
-  } catch (err) {
+    return res.status(200).json({ ok: true, success: success, client: item.name, status: newStatus, agent: agentName });
+  } catch(err) {
     console.error('Webhook error:', err);
     return res.status(200).json({ ok: true, error: err.message });
   }
