@@ -20,6 +20,26 @@ const AGENT_BOARDS = {
   '18420275367': 'Gazel',
 };
 
+// Promo Code column ID per board
+const PROMO_COLUMN = {
+  '9692100711':  'text_mm4tcm0w', // Earl
+  '9692108190':  'text_mm4ta6xg', // Ria
+  '9692125478':  'text_mm4th5td', // Sharlene
+  '9993525271':  'text_mm4td8b9', // Paulo
+  '9692105137':  'text_mm4tx4aa', // Denmark
+  '9692104460':  'text_mm4tzhvz', // Red
+  '9692098753':  'text_mm4tn81h', // Isha
+  '9692097734':  'text_mm4t8j9n', // Tricia
+  '9692102314':  'text_mm4t5hhz', // Jonie
+  '18403437923': 'text_mm4tm156', // Vhan
+  '18390156935': 'text_mm4t57km', // Piolo
+  '18393858367': 'text_mm4t5jsn', // Jess
+  '18402652963': 'text_mm4t545d', // Arny
+  '18404006348': 'text_mm4tnvws', // Rizza
+  '9591642884':  'text_mm4tcvyn', // MJ
+  '18420275367': 'text_mm4t5jsn', // Gazel
+};
+
 const PAGE_MAP = {
   '0': 'LAROSE CEBU',
   '1': 'AVINICHI',
@@ -31,7 +51,7 @@ const SENDER_NAMES = {
   'AVINICHI':       'AVINICHI',
   'COSMETIC COCOON':'COSMECOCOON',
   'LA ROSE':        'LAROSE',
-  'LAROSE CEBU':    'LRCEBU',
+  'LAROSE CEBU':    'LaroseCebu',
 };
 
 const BOOKING_TEMPLATE = "Hi {name},\n\nIts {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!";
@@ -71,15 +91,16 @@ function fillTemplate(c) {
     .replace(/{location}/g, c.location || 'our clinic');
 }
 
-async function getItemDetails(itemId, mondayToken) {
-  var query = "{ items(ids: [" + itemId + "]) { id name board { id } column_values(ids: [\"phone\",\"date8\",\"status_16\",\"dup__of_lead_stage2\",\"text_mksw348s\",\"text3\",\"text_mm4tnvws\",\"status_167\"]) { id text value } } }";
+async function getItemDetails(itemId, boardId, mondayToken) {
+  var promoCol = PROMO_COLUMN[String(boardId)] || 'text_mm4tcm0w';
+  var query = "{ items(ids: [" + itemId + "]) { id name board { id } column_values(ids: [\"phone\",\"date8\",\"status_16\",\"dup__of_lead_stage2\",\"text_mksw348s\",\"text3\",\"" + promoCol + "\",\"status_167\"]) { id text value } } }";
   var r = await fetch('https://api.monday.com/v2', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': mondayToken, 'API-Version': '2024-10' },
     body: JSON.stringify({ query: query })
   });
   var data = await r.json();
-  return data && data.data && data.data.items && data.data.items[0];
+  return { item: data && data.data && data.data.items && data.data.items[0], promoCol: promoCol };
 }
 
 async function sendSms(phone, message, brand, semaphoreKey) {
@@ -136,7 +157,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    var item = await getItemDetails(itemId, MONDAY_TOKEN);
+    var result = await getItemDetails(itemId, boardId, MONDAY_TOKEN);
+    var item = result.item;
+    var promoCol = result.promoCol;
+
     if (!item) return res.status(200).json({ ok: true, skipped: 'item not found' });
 
     var col = {};
@@ -149,7 +173,7 @@ export default async function handler(req, res) {
     var location = (col['status_16'] && col['status_16'].text) || '';
     var service = (col['text_mksw348s'] && col['text_mksw348s'].text) || '';
     var payment = (col['text3'] && col['text3'].text) || '';
-    var promo = (col['text_mm4tnvws'] && col['text_mm4tnvws'].text) || '';
+    var promo = (col[promoCol] && col[promoCol].text) || '';
 
     var page = '';
     try {
@@ -162,7 +186,7 @@ export default async function handler(req, res) {
     var message = fillTemplate(client);
     var success = await sendSms(phone, message, page, SEMAPHORE_KEY);
 
-    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName);
+    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName + ' - Promo: ' + promo);
 
     return res.status(200).json({ ok: true, success: success, client: item.name, status: newStatus, agent: agentName });
   } catch(err) {
