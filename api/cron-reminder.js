@@ -1,4 +1,3 @@
-
 export default async function handler(req, res) {
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -9,9 +8,8 @@ export default async function handler(req, res) {
   const SEMAPHORE_KEY = process.env.SEMAPHORE_KEY;
   const BOARD_ID = 9591384788;
   const PAGE_MAP = { '0': 'LAROSE CEBU', '1': 'AVINICHI', '2': 'LA ROSE', '4': 'COSMETIC COCOON' };
-  const SENDER_NAMES = { 'AVINICHI': 'AVINICHI', 'COSMETIC COCOON': 'COSMECOCOON', 'LA ROSE': 'LAROSE', 'LAROSE CEBU': 'LRCEBU' };
+  const SENDER_NAMES = { 'AVINICHI': 'AVINICHI', 'COSMETIC COCOON': 'COSMECOCOON', 'LA ROSE': 'LAROSE', 'LAROSE CEBU': 'LaroseCebu' };
 
-  // Detect which cron is running — day-before or day-of
   const type = req.query.type || 'tomorrow';
 
   const TEMPLATES = {
@@ -40,7 +38,12 @@ export default async function handler(req, res) {
   }
   function formatTime(ds) {
     if (!ds) return '';
-    try { const d = new Date(ds); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+    try {
+      const d = new Date(ds);
+      if (isNaN(d)) return '';
+      d.setHours(d.getHours() + 1);
+      return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
+    } catch { return ''; }
   }
   function fillTemplate(tpl, c) {
     return tpl
@@ -84,11 +87,9 @@ export default async function handler(req, res) {
       if (!phone) return null;
       if (!['For confirmation', 'Confirmed', 'For reconfirmation'].includes(apptStatus)) return null;
 
-      // Day-before: tomorrow's appointments, reminder not yet sent
       if (type === 'tomorrow' && !isTomorrow(apptDate)) return null;
       if (type === 'tomorrow' && reminderSent === 'Done') return null;
 
-      // Day-of: today's appointments, day-of reminder not yet sent
       if (type === 'today' && !isToday(apptDate)) return null;
       if (type === 'today' && dayOfSent === 'Done') return null;
 
@@ -107,4 +108,30 @@ export default async function handler(req, res) {
       const senderName = SENDER_NAMES[c.page] || 'CLINIC';
       const phone = formatPhone(c.phone);
       try {
-        const smsRes = await fetch('https://api.semaphore.co/api/v4/m
+        const smsRes = await fetch('https://api.semaphore.co/api/v4/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ apikey: SEMAPHORE_KEY, number: phone, message: msg, sendername: senderName })
+        });
+        const smsData = await smsRes.json();
+        const result = Array.isArray(smsData) ? smsData[0] : smsData;
+        if (smsRes.ok && result?.status !== 'failed') {
+          sent++;
+          console.log(`Sent ${type} reminder to ${c.name} (${phone})`);
+        } else {
+          failed++;
+          console.log(`Failed ${type} reminder to ${c.name}: ${result?.message}`);
+        }
+      } catch(err) {
+        failed++;
+        console.log(`Error sending to ${c.name}: ${err.message}`);
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    return res.status(200).json({ ok: true, type, sent, failed, total: clients.length });
+  } catch(err) {
+    console.error('Cron error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+}
