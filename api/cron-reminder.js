@@ -13,8 +13,8 @@ export default async function handler(req, res) {
   const type = req.query.type || 'tomorrow';
 
   const TEMPLATES = {
-    tomorrow: 'Hi {name}! This is a soft reminder from {brand} that you have an appointment with us tomorrow, {date} at {time}. Please confirm your attendance by calling or texting us, or message us on our Facebook page. Thank you! — {brand} Team',
-    today: 'Hi {name}! This is {brand}. Your appointment is TODAY at {time}. We look forward to seeing you! For inquiries, please call or message us on our Facebook page. — {brand} Team',
+    tomorrow: 'Hi {name}!\n\nJust a soft reminder of your appointment tomorrow, {date} at {time}.\nPlease confirm via our FB page.\nThank you!',
+    today: 'Hi {name}!\n\nJust a reminder that your appointment is TODAY at {time}.\nWe cant wait to see your results!\n\nSee you soon!',
   };
 
   function isTomorrow(ds) {
