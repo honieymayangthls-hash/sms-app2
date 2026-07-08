@@ -20,24 +20,23 @@ const AGENT_BOARDS = {
   '18420275367': 'Gazel',
 };
 
-// Promo Code column ID per board
 const PROMO_COLUMN = {
-  '9692100711':  'text_mm4tcm0w', // Earl
-  '9692108190':  'text_mm4ta6xg', // Ria
-  '9692125478':  'text_mm4th5td', // Sharlene
-  '9993525271':  'text_mm4td8b9', // Paulo
-  '9692105137':  'text_mm4tx4aa', // Denmark
-  '9692104460':  'text_mm4tzhvz', // Red
-  '9692098753':  'text_mm4tn81h', // Isha
-  '9692097734':  'text_mm4t8j9n', // Tricia
-  '9692102314':  'text_mm4t5hhz', // Jonie
-  '18403437923': 'text_mm4tm156', // Vhan
-  '18390156935': 'text_mm4t57km', // Piolo
-  '18393858367': 'text_mm4t5jsn', // Jess
-  '18402652963': 'text_mm4t545d', // Arny
-  '18404006348': 'text_mm4tnvws', // Rizza
-  '9591642884':  'text_mm4tcvyn', // MJ
-  '18420275367': 'text_mm4t5jsn', // Gazel
+  '9692100711':  'text_mm4tcm0w',
+  '9692108190':  'text_mm4ta6xg',
+  '9692125478':  'text_mm4th5td',
+  '9993525271':  'text_mm4td8b9',
+  '9692105137':  'text_mm4tx4aa',
+  '9692104460':  'text_mm4tzhvz',
+  '9692098753':  'text_mm4tn81h',
+  '9692097734':  'text_mm4t8j9n',
+  '9692102314':  'text_mm4t5hhz',
+  '18403437923': 'text_mm4tm156',
+  '18390156935': 'text_mm4t57km',
+  '18393858367': 'text_mm4t5jsn',
+  '18402652963': 'text_mm4t545d',
+  '18404006348': 'text_mm4tnvws',
+  '9591642884':  'text_mm4tcvyn',
+  '18420275367': 'text_mm4t5jsn',
 };
 
 const PAGE_MAP = {
@@ -54,7 +53,7 @@ const SENDER_NAMES = {
   'LAROSE CEBU':    'LaroseCebu',
 };
 
-const BOOKING_TEMPLATE = "Hi {name},\n\nIts {agent} Your {service} using ({payment}) has been successfully reserved on {date} @ {time}.\n\nPromo Code: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\n\nThank you!";
+const BOOKING_TEMPLATE = "Hi {name},\n\nIts {agent} Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPrmcode: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\nThank you!";
 
 function formatDate(ds) {
   if (!ds) return '';
@@ -186,7 +185,7 @@ export default async function handler(req, res) {
     var message = fillTemplate(client);
     var success = await sendSms(phone, message, page, SEMAPHORE_KEY);
 
-    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName + ' - Promo: ' + promo);
+    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName);
 
     return res.status(200).json({ ok: true, success: success, client: item.name, status: newStatus, agent: agentName });
   } catch(err) {
