@@ -41,19 +41,19 @@ export default async function handler(req, res) {
     const clients = items.map(item => {
       const col = {};
       item.column_values.forEach(c => col[c.id] = c);
-
+      const apptDate = col['date8']?.text || '';
+      if (!apptDate) return null;
       let page = '';
       try {
         const v = JSON.parse(col['dup__of_lead_stage2']?.value || '{}');
         page = PAGE_MAP[String(v.index)] || col['dup__of_lead_stage2']?.text || '';
       } catch {}
-
       return {
         id: item.id,
         name: item.name,
         phone: col['phone']?.text || '',
         apptStatus: col['status_11']?.text || '',
-        apptDate: col['date8']?.text || '',
+        apptDate,
         location: col['status_16']?.text || '',
         page,
         agent: col['status_167']?.text || '',
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
         promo: col['text_mm4swazy']?.text || '',
         smsStatus: col['color_mkv7297j']?.text === 'Done' ? 'Sent' : 'Pending'
       };
-    }).filter(item => item.apptDate);
+    }).filter(Boolean);
 
     return res.status(200).json(clients);
   } catch (err) {
