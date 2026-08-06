@@ -44,13 +44,6 @@ const CLINIC_NUMBERS = {
   'LA ROSE':        '',
 };
 
-const CLINIC_NUMBERS = {
-  'LAROSE CEBU':    '09272769745',
-  'AVINICHI':       '09271449686',
-  'COSMETIC COCOON':'09166030147',
-  'LA ROSE':        '',
-};
-
 const BOOKING_TEMPLATE = 'Hi {name},\nIts {agent},\nYour {service} via ({payment}) is booked on {date} @ {time}.\nPromocode: {promo}\n{location}\nIts a one-time promo.\nPlease confirm via FB Page or text us at {clinic_number}.\nKindly confirm 1 day prior to your appointment.\nThank you!';
 
 function formatDate(ds) {
