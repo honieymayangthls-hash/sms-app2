@@ -62,7 +62,7 @@ const PROMO_COLUMNS = {
   '18420275367': 'text_mm4t5jsn', // Gazel
 };
 
-const BOOKING_TEMPLATE = 'Hi {name},\n\nIts {agent}. Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPromocode: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page or text us at {clinic_number} 1 day prior to your appointment.\n\nThank you!';
+const BOOKING_TEMPLATE = 'Hi {name},\n\nIts {agent}. Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPromocode: {promo}\n{location}\n\nIts a one-time promo.\nPlease confirm via FB Page or text us at {clinic_number}.\n\nKindly confirm 1 day prior to your appointment.\n\nThank you!';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -108,7 +108,6 @@ function fillTemplate(c) {
   const tpl = clinicNum
     ? BOOKING_TEMPLATE
     : BOOKING_TEMPLATE.replace(' or text us at {clinic_number}', '');
-
   let out = tpl
     .replace(/{name}/g, c.name || '')
     .replace(/{agent}/g, c.agent || '')
