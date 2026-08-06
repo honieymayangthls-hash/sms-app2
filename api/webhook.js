@@ -1,4 +1,7 @@
 // api/webhook.js — Monday.com Webhook Handler
+// Triggered when agent changes status to "Scheduled" or "Rescheduled"
+// Automatically sends Booking Confirmation SMS to client
+
 const TRIGGER_STATUSES = ['Scheduled', 'Rescheduled'];
 
 const AGENT_BOARDS = {
@@ -20,25 +23,6 @@ const AGENT_BOARDS = {
   '18420275367': 'Gazel',
 };
 
-const PROMO_COLUMN = {
-  '9692100711':  'text_mm4tcm0w',
-  '9692108190':  'text_mm4ta6xg',
-  '9692125478':  'text_mm4th5td',
-  '9993525271':  'text_mm4td8b9',
-  '9692105137':  'text_mm4tx4aa',
-  '9692104460':  'text_mm4tzhvz',
-  '9692098753':  'text_mm4tn81h',
-  '9692097734':  'text_mm4t8j9n',
-  '9692102314':  'text_mm4t5hhz',
-  '18403437923': 'text_mm4tm156',
-  '18390156935': 'text_mm4t57km',
-  '18393858367': 'text_mm4t5jsn',
-  '18402652963': 'text_mm4t545d',
-  '18404006348': 'text_mm4tnvws',
-  '9591642884':  'text_mm4tcvyn',
-  '18420275367': 'text_mm4t5jsn',
-};
-
 const PAGE_MAP = {
   '0': 'LAROSE CEBU',
   '1': 'AVINICHI',
@@ -50,34 +34,35 @@ const SENDER_NAMES = {
   'AVINICHI':       'AVINICHI',
   'COSMETIC COCOON':'COSMECOCOON',
   'LA ROSE':        'LAROSE',
-  'LAROSE CEBU':    'LaroseCebu',
+  'LAROSE CEBU':    'LRCEBU',
 };
 
-const BOOKING_TEMPLATE = "Hi {name},\n\nIts {agent} Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPrmcode: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page 1 day prior to your appointment.\nThank you!";
+const CLINIC_NUMBERS = {
+  'LAROSE CEBU':    '09272769745',
+  'AVINICHI':       '09271449686',
+  'COSMETIC COCOON':'09166030147',
+  'LA ROSE':        '',
+};
+
+const BOOKING_TEMPLATE = 'Hi {name},\nIts {agent},\nYour {service} via ({payment}) is booked on {date} @ {time}.\nPromocode: {promo}\n{location}\nIts a one-time promo.\nPlease confirm via FB Page or text us at {clinic_number}.\nKindly confirm 1 day prior to your appointment.\nThank you!';
 
 function formatDate(ds) {
-  if (!ds) return '';
-  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch(e) { return ds; }
+  if (!ds) return '—';
+  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch { return ds; }
 }
-
 function formatTime(ds) {
   if (!ds) return '';
-  try {
-    var d = new Date(ds);
-    if (isNaN(d)) return '';
-    d.setHours(d.getHours() + 1);
-    return d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' });
-  } catch(e) { return ''; }
+  try { const d = new Date(ds); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
 }
-
 function formatPhone(raw) {
-  var digits = (raw || '').replace(/\D/g, '');
+  const digits = (raw || '').replace(/\D/g, '');
   if (digits.startsWith('63')) return digits;
   if (digits.startsWith('0')) return '63' + digits.slice(1);
   return '63' + digits;
 }
-
 function fillTemplate(c) {
+  const loc = (c.location || '').split('-').pop()?.trim() || 'our clinic';
+  const clinicNum = CLINIC_NUMBERS[c.page] || '';
   return BOOKING_TEMPLATE
     .replace(/{name}/g, c.name || '')
     .replace(/{agent}/g, c.agent || '')
@@ -87,108 +72,119 @@ function fillTemplate(c) {
     .replace(/{date}/g, formatDate(c.apptDate))
     .replace(/{time}/g, formatTime(c.apptDate))
     .replace(/{promo}/g, c.promo || '')
-    .replace(/{location}/g, c.location || 'our clinic');
+    .replace(/{location}/g, loc)
+    .replace(/{clinic_number}/g, clinicNum);
 }
 
-async function getItemDetails(itemId, boardId, mondayToken) {
-  var promoCol = PROMO_COLUMN[String(boardId)] || 'text_mm4tcm0w';
-  var query = "{ items(ids: [" + itemId + "]) { id name board { id } column_values(ids: [\"phone\",\"date8\",\"status_16\",\"dup__of_lead_stage2\",\"text_mksw348s\",\"text3\",\"" + promoCol + "\",\"status_167\"]) { id text value } } }";
-  var r = await fetch('https://api.monday.com/v2', {
+async function getItemDetails(itemId, mondayToken) {
+  const query = `{
+    items(ids: [${itemId}]) {
+      id name
+      board { id }
+      column_values(ids: ["phone","date8","status_16","dup__of_lead_stage2","text_mkswdnmm","text3","text_mm4swazy","status_167"]) {
+        id text value
+      }
+    }
+  }`;
+
+  const r = await fetch('https://api.monday.com/v2', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': mondayToken, 'API-Version': '2024-10' },
-    body: JSON.stringify({ query: query })
+    body: JSON.stringify({ query })
   });
-  var data = await r.json();
-  return { item: data && data.data && data.data.items && data.data.items[0], promoCol: promoCol };
+  const data = await r.json();
+  return data?.data?.items?.[0];
 }
 
 async function sendSms(phone, message, brand, semaphoreKey) {
-  var formattedPhone = formatPhone(phone);
-  var senderName = SENDER_NAMES[brand] || 'CLINIC';
-  var r = await fetch('https://api.semaphore.co/api/v4/messages', {
+  const formattedPhone = formatPhone(phone);
+  const senderName = SENDER_NAMES[brand] || 'CLINIC';
+  const r = await fetch('https://api.semaphore.co/api/v4/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apikey: semaphoreKey, number: formattedPhone, message: message, sendername: senderName })
+    body: JSON.stringify({ apikey: semaphoreKey, number: formattedPhone, message, sendername: senderName })
   });
-  var data = await r.json();
-  var result = Array.isArray(data) ? data[0] : data;
-  return r.ok && result && result.status !== 'failed';
+  const data = await r.json();
+  const result = Array.isArray(data) ? data[0] : data;
+  return r.ok && result?.status !== 'failed';
 }
 
 export default async function handler(req, res) {
-  console.log('WEBHOOK BODY:', JSON.stringify(req.body, null, 2));
-
-  if (req.body && req.body.challenge) {
+  // Monday.com webhook verification challenge
+  if (req.body?.challenge) {
     return res.status(200).json({ challenge: req.body.challenge });
   }
 
-  var MONDAY_TOKEN = process.env.MONDAY_TOKEN;
-  var SEMAPHORE_KEY = process.env.SEMAPHORE_KEY;
+  const MONDAY_TOKEN = process.env.MONDAY_TOKEN;
+  const SEMAPHORE_KEY = process.env.SEMAPHORE_KEY;
 
   if (!MONDAY_TOKEN || !SEMAPHORE_KEY) {
     return res.status(500).json({ error: 'Missing env vars' });
   }
 
-  var event = req.body && req.body.event;
+  const event = req.body?.event;
   if (!event) return res.status(200).json({ ok: true, skipped: 'no event' });
 
-  var boardId = event.boardId;
-  var itemId = event.pulseId || event.itemId;
-  var columnId = event.columnId;
-  var value = event.value;
+  const { boardId, itemId, columnId, value } = event;
 
-  console.log('Board: ' + boardId + ' | Item: ' + itemId + ' | Column: ' + columnId);
-
+  // Only process status7 column changes
   if (columnId !== 'status7') {
-    return res.status(200).json({ ok: true, skipped: 'not status7 - got ' + columnId });
+    return res.status(200).json({ ok: true, skipped: 'not status7' });
   }
 
-  var newStatus = (value && value.label && value.label.text) || (value && value.label) || '';
-  console.log('Status: ' + newStatus);
-
-  if (TRIGGER_STATUSES.indexOf(newStatus) === -1) {
-    return res.status(200).json({ ok: true, skipped: 'status not a trigger: ' + newStatus });
+  // Only trigger on Scheduled or Rescheduled
+  const newStatus = value?.label?.text || '';
+  if (!TRIGGER_STATUSES.includes(newStatus)) {
+    return res.status(200).json({ ok: true, skipped: `status "${newStatus}" not a trigger` });
   }
 
-  var agentName = AGENT_BOARDS[String(boardId)];
+  // Check if this board is one of our agent boards
+  const agentName = AGENT_BOARDS[String(boardId)];
   if (!agentName) {
     return res.status(200).json({ ok: true, skipped: 'not an agent board' });
   }
 
   try {
-    var result = await getItemDetails(itemId, boardId, MONDAY_TOKEN);
-    var item = result.item;
-    var promoCol = result.promoCol;
-
+    const item = await getItemDetails(itemId, MONDAY_TOKEN);
     if (!item) return res.status(200).json({ ok: true, skipped: 'item not found' });
 
-    var col = {};
-    (item.column_values || []).forEach(function(c) { col[c.id] = c; });
+    const col = {};
+    (item.column_values || []).forEach(c => col[c.id] = c);
 
-    var phone = (col['phone'] && col['phone'].text) || '';
+    const phone = col['phone']?.text || '';
     if (!phone) return res.status(200).json({ ok: true, skipped: 'no phone number' });
 
-    var apptDate = (col['date8'] && col['date8'].text) || '';
-    var location = (col['status_16'] && col['status_16'].text) || '';
-    var service = (col['text_mksw348s'] && col['text_mksw348s'].text) || '';
-    var payment = (col['text3'] && col['text3'].text) || '';
-    var promo = (col[promoCol] && col[promoCol].text) || '';
+    const apptDate = col['date8']?.text || '';
+    const location = col['status_16']?.text || '';
+    const service = col['text_mkswdnmm']?.text || '';
+    const payment = col['text3']?.text || '';
+    const promo = col['text_mm4swazy']?.text || '';
 
-    var page = '';
+    let page = '';
     try {
-      var v = JSON.parse((col['dup__of_lead_stage2'] && col['dup__of_lead_stage2'].value) || '{}');
-      page = PAGE_MAP[String(v.index)] || (col['dup__of_lead_stage2'] && col['dup__of_lead_stage2'].text) || '';
-    } catch(e) {}
+      const v = JSON.parse(col['dup__of_lead_stage2']?.value || '{}');
+      page = PAGE_MAP[String(v.index)] || col['dup__of_lead_stage2']?.text || '';
+    } catch {}
 
-    var client = { name: item.name, phone: phone, apptDate: apptDate, location: location, page: page, agent: agentName, service: service, payment: payment, promo: promo };
+    const client = {
+      name: item.name,
+      phone,
+      apptDate,
+      location,
+      page,
+      agent: agentName,
+      service,
+      payment,
+      promo,
+    };
 
-    var message = fillTemplate(client);
-    var success = await sendSms(phone, message, page, SEMAPHORE_KEY);
+    const message = fillTemplate(client);
+    const success = await sendSms(phone, message, page, SEMAPHORE_KEY);
 
-    console.log('Webhook SMS ' + (success ? 'sent' : 'failed') + ' to ' + item.name + ' (' + phone + ') - Status: ' + newStatus + ' - Agent: ' + agentName);
+    console.log(`Webhook SMS ${success ? 'sent' : 'failed'} to ${item.name} (${phone}) — Status: ${newStatus} — Agent: ${agentName}`);
 
-    return res.status(200).json({ ok: true, success: success, client: item.name, status: newStatus, agent: agentName });
-  } catch(err) {
+    return res.status(200).json({ ok: true, success, client: item.name, status: newStatus, agent: agentName });
+  } catch (err) {
     console.error('Webhook error:', err);
     return res.status(200).json({ ok: true, error: err.message });
   }
