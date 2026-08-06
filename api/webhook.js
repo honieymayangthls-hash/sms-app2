@@ -33,7 +33,7 @@ const SENDER_NAMES = {
   'AVINICHI':       'AVINICHI',
   'COSMETIC COCOON':'COSMECOCOON',
   'LA ROSE':        'LAROSE',
-  'LAROSE CEBU':    'LRCEBU',
+  'LAROSE CEBU':    'LaroseCebu',
 };
 
 const CLINIC_NUMBERS = {
@@ -62,16 +62,38 @@ const PROMO_COLUMNS = {
   '18420275367': 'text_mm4t5jsn', // Gazel
 };
 
-const BOOKING_TEMPLATE = 'Hi {name},\nIts {agent},\nYour {service} via ({payment}) is booked on {date} @ {time}.\nPromocode: {promo}\n{location}\nIts a one-time promo.\nPlease confirm via FB Page or text us at {clinic_number}.\nKindly confirm 1 day prior to your appointment.\nThank you!';
+const BOOKING_TEMPLATE = 'Hi {name},\n\nIts {agent}. Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPromocode: {promo}\n{location}\n\nIts a one-time promo. Please confirm via FB Page or text us at {clinic_number} 1 day prior to your appointment.\n\nThank you!';
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Parse Monday date8 text ("YYYY-MM-DD HH:mm:ss") directly — NO timezone conversion.
+// Vercel servers run on UTC, so new Date() + toLocaleString shifted the hour.
+function parseMondayDate(ds) {
+  if (!ds) return null;
+  const m = String(ds).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return {
+    year: +m[1], month: +m[2], day: +m[3],
+    hour: m[4] !== undefined ? +m[4] : null,
+    minute: m[5] !== undefined ? +m[5] : 0,
+  };
+}
 
 function formatDate(ds) {
-  if (!ds) return '—';
-  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch { return ds; }
+  const d = parseMondayDate(ds);
+  if (!d) return ds || '—';
+  return `${MONTHS[d.month - 1]} ${d.day}, ${d.year}`;
 }
+
 function formatTime(ds) {
-  if (!ds) return '';
-  try { const d = new Date(ds); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+  const d = parseMondayDate(ds);
+  if (!d || d.hour === null) return '';
+  const ampm = d.hour >= 12 ? 'PM' : 'AM';
+  let h = d.hour % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, '0')}:${String(d.minute).padStart(2, '0')} ${ampm}`;
 }
+
 function formatPhone(raw) {
   const digits = (raw || '').replace(/\D/g, '');
   if (digits.startsWith('63')) return digits;
@@ -81,7 +103,13 @@ function formatPhone(raw) {
 function fillTemplate(c) {
   const loc = c.location || 'our clinic';
   const clinicNum = CLINIC_NUMBERS[c.page] || '';
-  return BOOKING_TEMPLATE
+
+  // No clinic number for this brand (e.g. LA ROSE) — drop the "or text us at ___" clause
+  const tpl = clinicNum
+    ? BOOKING_TEMPLATE
+    : BOOKING_TEMPLATE.replace(' or text us at {clinic_number}', '');
+
+  let out = tpl
     .replace(/{name}/g, c.name || '')
     .replace(/{agent}/g, c.agent || '')
     .replace(/{brand}/g, c.page || '')
@@ -92,6 +120,11 @@ function fillTemplate(c) {
     .replace(/{promo}/g, c.promo || '')
     .replace(/{location}/g, loc)
     .replace(/{clinic_number}/g, clinicNum);
+
+  // Clean up if promo code is empty — remove the dangling "Promocode:" line
+  out = out.replace(/\nPromocode:\s*(?=\n)/, '');
+
+  return out;
 }
 
 async function getItemDetails(itemId, mondayToken, promoCol) {
@@ -125,7 +158,11 @@ async function sendSms(phone, message, brand, semaphoreKey) {
   });
   const data = await r.json();
   const result = Array.isArray(data) ? data[0] : data;
-  return r.ok && result?.status !== 'failed';
+  const ok = r.ok && result?.status !== 'failed';
+  if (!ok) {
+    console.error(`SEMAPHORE FAILED — Brand: "${brand}" — Sender: "${senderName}" — Response: ${JSON.stringify(data)}`);
+  }
+  return ok;
 }
 
 export default async function handler(req, res) {
@@ -205,7 +242,7 @@ export default async function handler(req, res) {
     const message = fillTemplate(client);
     const success = await sendSms(phone, message, page, SEMAPHORE_KEY);
 
-    console.log(`Webhook SMS ${success ? 'sent' : 'failed'} to ${item.name} (${phone}) — Status: ${newStatus} — Agent: ${agentName}`);
+    console.log(`Webhook SMS ${success ? 'sent' : 'failed'} to ${item.name} (${phone}) — Status: ${newStatus} — Agent: ${agentName} — RawDate: "${apptDate}" → "${formatDate(apptDate)} @ ${formatTime(apptDate)}" — Brand: ${page} — Sender: ${SENDER_NAMES[page] || 'CLINIC'}`);
 
     return res.status(200).json({ ok: true, success, client: item.name, status: newStatus, agent: agentName });
   } catch (err) {

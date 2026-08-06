@@ -16,7 +16,7 @@ const SENDER_NAMES = {
   'AVINICHI':       'AVINICHI',
   'COSMETIC COCOON':'COSMECOCOON',
   'LA ROSE':        'LAROSE',
-  'LAROSE CEBU':    'LRCEBU',
+  'LAROSE CEBU':    'LaroseCebu',
 };
 
 const CLINIC_NUMBERS = {
@@ -46,17 +46,45 @@ function formatPhone(raw) {
   if (digits.startsWith('0')) return '63' + digits.slice(1);
   return '63' + digits;
 }
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// Parse Monday date8 text ("YYYY-MM-DD HH:mm:ss") directly — NO timezone conversion.
+// Vercel servers run on UTC, so new Date() + toLocaleString shifted the hour.
+function parseMondayDate(ds) {
+  if (!ds) return null;
+  const m = String(ds).match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return {
+    year: +m[1], month: +m[2], day: +m[3],
+    hour: m[4] !== undefined ? +m[4] : null,
+    minute: m[5] !== undefined ? +m[5] : 0,
+  };
+}
 function formatDate(ds) {
-  if (!ds) return '—';
-  try { return new Date(ds).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }); } catch { return ds; }
+  const d = parseMondayDate(ds);
+  if (!d) return ds || '—';
+  return `${MONTHS[d.month - 1]} ${d.day}, ${d.year}`;
 }
 function formatTime(ds) {
-  if (!ds) return '';
-  try { const d = new Date(ds); return isNaN(d) ? '' : d.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; }
+  const d = parseMondayDate(ds);
+  if (!d || d.hour === null) return '';
+  const ampm = d.hour >= 12 ? 'PM' : 'AM';
+  let h = d.hour % 12;
+  if (h === 0) h = 12;
+  return `${String(h).padStart(2, '0')}:${String(d.minute).padStart(2, '0')} ${ampm}`;
 }
 function fillTemplate(tpl, c) {
   const clinicNum = CLINIC_NUMBERS[c.page] || '';
-  return tpl
+
+  // No clinic number for this brand (e.g. LA ROSE) — drop the "text us at ___" clause
+  let t = tpl;
+  if (!clinicNum) {
+    t = t
+      .replace(' or text us at {clinic_number}', '')
+      .replace('\n\nFor inquiries, text us at {clinic_number}.', '');
+  }
+
+  return t
     .replace(/{name}/g, c.name || '')
     .replace(/{brand}/g, c.page || '')
     .replace(/{date}/g, formatDate(c.apptDate))

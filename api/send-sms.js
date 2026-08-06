@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     'AVINICHI': 'AVINICHI',
     'COSMETIC COCOON': 'COSMECOCOON',
     'LA ROSE': 'LAROSE',
-    'LAROSE CEBU': 'LRCEBU',
+    'LAROSE CEBU': 'LaroseCebu',
   };
 
   const { phone, message, brand } = req.body;
