@@ -27,8 +27,8 @@ const CLINIC_NUMBERS = {
 };
 
 const TEMPLATES = {
-  tomorrow: 'Good morning {name}!\n\nThis is a soft reminder from {brand} that you have an appointment with us tomorrow, {date} at {time}.\n\nPlease confirm your attendance by messaging us on our FB page or text us at {clinic_number}.\nThank you!',
-  today:    'Good morning {name}!\n\nThis is {brand}. Just a reminder that your appointment is TODAY at {time}.\nWe look forward to seeing you!\n\nFor inquiries, text us at {clinic_number}.\n\nThank You!',
+  tomorrow: 'Good morning {name}! A soft reminder that you have an appointment with us TOMORROW at {time}. Please confirm via FB page or text {clinic_number}. Thank you!',
+  today:    'Good morning {name}! Just a reminder that your appointment is TODAY at {time}. We look forward to seeing you! For inquiries, text {clinic_number}. Thank You!',
 };
 
 function isTomorrow(ds) {
@@ -73,19 +73,30 @@ function formatTime(ds) {
   if (h === 0) h = 12;
   return `${String(h).padStart(2, '0')}:${String(d.minute).padStart(2, '0')} ${ampm}`;
 }
+// Use first name only — keeps every reminder inside 1 SMS credit (160 chars)
+// and handles prefixes (Ma., Mrs.) plus Monday's "(copy)" suffix.
+function firstName(full) {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  const prefix = /^(ma\.?|mr\.?|mrs\.?|ms\.?|dr\.?|sr\.?|jr\.?)$/i;
+  let i = 0;
+  while (i < parts.length - 1 && (prefix.test(parts[i]) || parts[i].length <= 2)) i++;
+  return parts[i].replace(/[(),]/g, '');
+}
+
 function fillTemplate(tpl, c) {
   const clinicNum = CLINIC_NUMBERS[c.page] || '';
 
-  // No clinic number for this brand (e.g. LA ROSE) — drop the "text us at ___" clause
+  // No clinic number for this brand (e.g. LA ROSE) — drop the "text ___" clause
   let t = tpl;
   if (!clinicNum) {
     t = t
-      .replace(' or text us at {clinic_number}', '')
-      .replace('\n\nFor inquiries, text us at {clinic_number}.', '');
+      .replace(' or text {clinic_number}', '')
+      .replace(' For inquiries, text {clinic_number}.', '');
   }
 
   return t
-    .replace(/{name}/g, c.name || '')
+    .replace(/{name}/g, firstName(c.name))
     .replace(/{brand}/g, c.page || '')
     .replace(/{date}/g, formatDate(c.apptDate))
     .replace(/{time}/g, formatTime(c.apptDate))
