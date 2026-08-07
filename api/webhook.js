@@ -62,7 +62,7 @@ const PROMO_COLUMNS = {
   '18420275367': 'text_mm4t5jsn', // Gazel
 };
 
-const BOOKING_TEMPLATE = 'Hi {name}! Its {agent}. Your {service} via {payment} is booked on {date} @ {time}.\n\nPromo: {promo}\n{location}\n\nOne-time promo. Please confirm via FB Page or text {clinic_number} 1 day before. Thank you!';
+const BOOKING_TEMPLATE = 'Hi {name}! Its {agent}. Your {service} via {payment} is booked on {date} @ {time}.\n\nPromo: {promo}\n{location}\n\nOne-time promo. Please confirm 1 day before via FB Page or text {clinic_number}. Thank you!';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -118,8 +118,7 @@ function fillTemplate(c) {
   // No clinic number for this brand (e.g. LA ROSE) — drop the "or text ___" clause
   const tpl = clinicNum
     ? BOOKING_TEMPLATE
-    : BOOKING_TEMPLATE.replace(' or text {clinic_number}', '');
-  let out = tpl
+    : BOOKING_TEMPLATE.replace(' or text {clinic_number}', '');  let out = tpl
     .replace(/{name}/g, firstName(c.name))
     .replace(/{agent}/g, c.agent || '')
     .replace(/{brand}/g, c.page || '')
