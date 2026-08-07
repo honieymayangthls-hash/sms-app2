@@ -62,7 +62,7 @@ const PROMO_COLUMNS = {
   '18420275367': 'text_mm4t5jsn', // Gazel
 };
 
-const BOOKING_TEMPLATE = 'Hi {name},\n\nIts {agent}. Your {service} via ({payment}) is booked on {date} @ {time}.\n\nPromocode: {promo}\n{location}\n\nIts a one-time promo.\nPlease confirm via FB Page or text us at {clinic_number}.\n\nKindly confirm 1 day prior to your appointment.\n\nThank you!';
+const BOOKING_TEMPLATE = 'Hi {name}! Its {agent}. Your {service} via {payment} is booked on {date} @ {time}.\n\nPromo: {promo}\n{location}\n\nOne-time promo. Please confirm via FB Page or text {clinic_number} 1 day before. Thank you!';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
@@ -100,16 +100,27 @@ function formatPhone(raw) {
   if (digits.startsWith('0')) return '63' + digits.slice(1);
   return '63' + digits;
 }
+// Use first name only — keeps the message from spilling into an extra SMS credit.
+// Handles prefixes (Ma., Mrs.) and Monday's "(copy)" suffix.
+function firstName(full) {
+  const parts = String(full || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  const prefix = /^(ma\.?|mr\.?|mrs\.?|ms\.?|dr\.?|sr\.?|jr\.?)$/i;
+  let i = 0;
+  while (i < parts.length - 1 && (prefix.test(parts[i]) || parts[i].length <= 2)) i++;
+  return parts[i].replace(/[(),]/g, '');
+}
+
 function fillTemplate(c) {
   const loc = c.location || 'our clinic';
   const clinicNum = CLINIC_NUMBERS[c.page] || '';
 
-  // No clinic number for this brand (e.g. LA ROSE) — drop the "or text us at ___" clause
+  // No clinic number for this brand (e.g. LA ROSE) — drop the "or text ___" clause
   const tpl = clinicNum
     ? BOOKING_TEMPLATE
-    : BOOKING_TEMPLATE.replace(' or text us at {clinic_number}', '');
+    : BOOKING_TEMPLATE.replace(' or text {clinic_number}', '');
   let out = tpl
-    .replace(/{name}/g, c.name || '')
+    .replace(/{name}/g, firstName(c.name))
     .replace(/{agent}/g, c.agent || '')
     .replace(/{brand}/g, c.page || '')
     .replace(/{service}/g, c.service || '')
@@ -120,8 +131,8 @@ function fillTemplate(c) {
     .replace(/{location}/g, loc)
     .replace(/{clinic_number}/g, clinicNum);
 
-  // Clean up if promo code is empty — remove the dangling "Promocode:" line
-  out = out.replace(/\nPromocode:\s*(?=\n)/, '');
+  // Clean up if promo code is empty — remove the dangling "Promo:" line
+  out = out.replace(/\nPromo:\s*(?=\n)/, '');
 
   return out;
 }
