@@ -7,7 +7,7 @@ const TRIGGER_STATUSES = ['Scheduled', 'Rescheduled'];
 const AGENT_BOARDS = {
   '9692100711':  'Earl',
   '9692108190':  'Ria',
-  '9692125478':  'Sharlene',
+  '9692125478':  'Sarah',
   '9993525271':  'Paulo',
   '9692105137':  'Denmark',
   '9692104460':  'Red',
