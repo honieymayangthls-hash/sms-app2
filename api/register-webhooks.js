@@ -1,7 +1,7 @@
 const AGENT_BOARDS = [
   { id: '9692100711',  name: 'Earl' },
   { id: '9692108190',  name: 'Ria' },
-  { id: '9692125478',  name: 'Sharlene' },
+  { id: '9692125478',  name: 'Sarah' },
   { id: '9993525271',  name: 'Paulo' },
   { id: '9692105137',  name: 'Denmark' },
   { id: '9692104460',  name: 'Red' },
