@@ -47,7 +47,7 @@ const CLINIC_NUMBERS = {
 const PROMO_COLUMNS = {
   '9692100711':  'text_mm4tcm0w', // Earl
   '9692108190':  'text_mm4ta6xg', // Ria
-  '9692125478':  'text_mm4th5td', // Sharlene
+  '9692125478':  'text_mm4th5td', // Sarah
   '9993525271':  'text_mm4td8b9', // Paulo
   '9692105137':  'text_mm4tx4aa', // Denmark
   '9692104460':  'text_mm4tzhvz', // Red
