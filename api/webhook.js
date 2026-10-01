@@ -13,9 +13,9 @@ const AGENT_BOARDS = {
   '9692104460':  'Red',
   '9692098753':  'Isha',
   '9692097734':  'Tricia',
-  '9692102314':  'Jonie',
+  '9692102314':  'Reen',
   '18403437923': 'Vhan',
-  '18393858367': 'Jess',
+  '18393858367': 'Angela',
   '18402652963': 'Arny',
   '18404006348': 'Rizza',
   '9591642884':  'MJ',
@@ -53,9 +53,9 @@ const PROMO_COLUMNS = {
   '9692104460':  'text_mm4tzhvz', // Red
   '9692098753':  'text_mm4tn81h', // Isha
   '9692097734':  'text_mm4t8j9n', // Tricia
-  '9692102314':  'text_mm4t5hhz', // Jonie
+  '9692102314':  'text_mm4t5hhz', // Reen
   '18403437923': 'text_mm4tm156', // Vhan
-  '18393858367': 'text_mm4t5jsn', // Jess
+  '18393858367': 'text_mm4t5jsn', // Angela
   '18402652963': 'text_mm4t545d', // Arny
   '18404006348': 'text_mm4tnvws', // Rizza
   '9591642884':  'text_mm4tcvyn', // MJ
@@ -118,7 +118,9 @@ function fillTemplate(c) {
   // No clinic number for this brand (e.g. LA ROSE) — drop the "or text ___" clause
   const tpl = clinicNum
     ? BOOKING_TEMPLATE
-    : BOOKING_TEMPLATE.replace(' or text {clinic_number}', '');  let out = tpl
+    : BOOKING_TEMPLATE.replace(' or text {clinic_number}', '');
+
+  let out = tpl
     .replace(/{name}/g, firstName(c.name))
     .replace(/{agent}/g, c.agent || '')
     .replace(/{brand}/g, c.page || '')
