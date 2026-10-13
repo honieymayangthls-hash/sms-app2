@@ -15,7 +15,7 @@ const AGENT_BOARDS = {
   '9692097734':  'Tricia',
   '9692102314':  'Reen',
   '18403437923': 'Vhan',
-  '18393858367': 'Angela',
+  '18393858367': 'Sharlene',
   '18402652963': 'Arny',
   '18404006348': 'Rizza',
   '9591642884':  'MJ',
@@ -55,7 +55,7 @@ const PROMO_COLUMNS = {
   '9692097734':  'text_mm4t8j9n', // Tricia
   '9692102314':  'text_mm4t5hhz', // Reen
   '18403437923': 'text_mm4tm156', // Vhan
-  '18393858367': 'text_mm4t5jsn', // Angela
+  '18393858367': 'text_mm4t5jsn', // Sharlene
   '18402652963': 'text_mm4t545d', // Arny
   '18404006348': 'text_mm4tnvws', // Rizza
   '9591642884':  'text_mm4tcvyn', // MJ
